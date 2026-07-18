@@ -20,6 +20,7 @@ Thumbs.db
 architecture.puml
 architecture.uml
 out/devpost/
+out/store/
 
 # Supabase CLI local state and secrets (keep Edge Function source tracked)
 supabase/.temp/
