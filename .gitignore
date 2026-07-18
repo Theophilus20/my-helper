@@ -26,3 +26,4 @@ out/store/
 supabase/.temp/
 supabase/.branches/
 supabase/.env
+out/architecture/
