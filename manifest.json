@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "My Helper",
-  "version": "1.3.0",
+  "version": "1.3.3",
   "description": "Your personal AI coach for ChatGPT and Codex.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "identity"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://*.chatgpt.com/*",
     "https://chat.openai.com/*",
-    "http://localhost:8787/*"
+    "https://*.supabase.co/*",
+    "http://localhost:8787/*",
+    "http://127.0.0.1:8787/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -20,7 +22,7 @@
       "https://*.chatgpt.com/*",
       "https://chat.openai.com/*"
     ],
-    "js": ["content.js"],
+    "js": ["content.js", "account-gate.js"],
     "run_at": "document_idle"
   }],
   "action": {
@@ -33,7 +35,7 @@
     "128": "assets/icon-128.png"
   },
   "web_accessible_resources": [{
-    "resources": ["assets/icon-128.png"],
+    "resources": ["assets/icon-128.png", "assets/google-g-logo.svg"],
     "matches": [
       "https://chatgpt.com/*",
       "https://*.chatgpt.com/*",

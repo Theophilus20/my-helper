@@ -6,7 +6,7 @@
   host.style.cssText = "position:fixed;right:22px;bottom:22px;z-index:2147483647;";
   document.documentElement.append(host);
   ["click", "pointerdown", "pointerup", "mousedown", "mouseup", "keydown", "keyup"].forEach((type) => host.addEventListener(type, (event) => event.stopPropagation()));
-  const shadow = host.attachShadow({ mode: "closed" });
+  const shadow = host.attachShadow({ mode: "open" });
 
   const svg = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
   const icons = {
@@ -270,7 +270,7 @@
   baseCopy.preferences = "ACCESSIBILITY & PREFERENCES";
   baseCopy.privacy = "My Helper is a separate coaching overlay. It sends only a prompt you explicitly ask it to coach.";
   baseCopy.privateMemory = "Private memory:";
-  baseCopy.privateText = "My Helper saves only your preferences and progress in this browser.";
+  baseCopy.privateText = "My Helper keeps your preferences private and syncs them only when you sign in.";
   baseCopy.projects = "Projects & Codex";
   baseCopy.promptCoach = "LIVE PROMPT COACH";
   baseCopy.promptPlaceholder = "Write or paste a prompt here...";
@@ -535,7 +535,14 @@
     window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
   };
-  const savePrefs = () => safeStorageSet({ myHelperPrefs: prefs });
+  const savePrefs = () => {
+  safeStorageSet({ myHelperPrefs: prefs });
+  try {
+    chrome.runtime.sendMessage({ type: "SYNC_USER_STATE", prefs }, () => {
+      try { void chrome.runtime.lastError; } catch {}
+    });
+  } catch {}
+};
   const applyCopy = () => {
     $$('[data-i18n]').forEach((element) => { const value = translatedCopy[element.dataset.i18n]; if (value) element.textContent = value; });
     $$('[data-i18n-placeholder]').forEach((element) => { const value = translatedCopy[element.dataset.i18nPlaceholder]; if (value) element.placeholder = value; });
@@ -626,7 +633,7 @@
     if (isNewProgress) Object.assign(prefs, { promptSkill: 0, chatgptSkill: 0, codexSkill: 0, automationSkill: 0, completedLessons: [], progressVersion: 4 });
     applyPrefs();
     if (prefs.language !== "English") setTimeout(translateInterface, 0);
-    if (isNewProgress) savePrefs();
+    savePrefs();
   });
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = populateVoices;
 
@@ -1162,6 +1169,12 @@
     panel.classList.toggle("open"); $("#screenName").textContent = prefs.language === "English" ? pageContext().toUpperCase() : translatedCopy.currentPage;
     if (panel.classList.contains("open")) { pauseVoiceListening(); schedulePanelClamp(); }
     else { restoreClosedPosition(); resumeWakeListening(); }
+  });
+  shadow.addEventListener("my-helper:restore-launcher-position", () => {
+    panel.classList.remove("open");
+    restoreClosedPosition();
+    pauseVoiceListening();
+    resumeWakeListening();
   });
   $(".close").addEventListener("click", () => { panel.classList.remove("open"); restoreClosedPosition(); pauseVoiceListening(); resumeWakeListening(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { panel.classList.remove("open"); restoreClosedPosition(); pauseVoiceListening(); resumeWakeListening(); } });

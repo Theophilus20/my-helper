@@ -1,0 +1,119 @@
+:root {
+  color: #142019;
+  background: #f9f4e9;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { min-width: 320px; margin: 0; }
+[hidden] { display: none !important; }
+
+.shell { max-width: 1120px; margin: auto; padding: 26px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 2px solid #142019; }
+.brand { display: flex; align-items: center; gap: 12px; color: inherit; font-size: 16px; font-weight: 800; letter-spacing: .04em; text-decoration: none; }
+.brand img { width: 58px; height: 58px; border-radius: 50%; background: #142019; object-fit: contain; }
+.brand small { display: block; margin-top: 4px; font: 400 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+.header-actions { display: flex; align-items: center; gap: 16px; }
+.language-picker { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.language-picker select { min-width: 128px; padding: 8px; border: 1.5px solid #142019; background: #fff; color: #142019; font: inherit; }
+
+.hero { max-width: 820px; padding: 68px 0 48px; }
+.eyebrow { margin: 0 0 10px; font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+.hero h1, .account-panel h2, .intro h2, .support-section h2, .data-section h2 { margin: 0; letter-spacing: -.055em; line-height: .96; }
+.hero h1 { font-size: clamp(42px, 7vw, 74px); }
+.hero > p:last-child { max-width: 750px; margin: 24px 0 0; color: #415148; font-size: 20px; line-height: 1.5; }
+
+.account-panel { display: grid; grid-template-columns: 1.1fr .9fr; gap: 34px; padding: 32px; border: 2px solid #142019; background: #b8dfc5; }
+.account-panel h2 { font-size: 38px; }
+.account-copy > p:last-child { max-width: 590px; margin: 16px 0 0; color: #34443a; font-size: 16px; line-height: 1.5; }
+.account-actions { display: flex; flex-direction: column; justify-content: center; }
+.google-button { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 50px; padding: 0 18px; border: 1px solid #747775; border-radius: 4px; background: #fff; color: #1f1f1f; box-shadow: 0 1px 2px rgba(60,64,67,.2); cursor: pointer; font: 500 15px/20px Arial, sans-serif; }
+.google-button:hover { background: #f8faff; box-shadow: 0 1px 3px rgba(60,64,67,.28); }
+.google-button img { width: 18px; height: 18px; }
+.google-button:disabled, .primary-button:disabled, .delete-button:disabled { cursor: wait; opacity: .68; }
+.consent { margin: 12px 0 0; color: #415148; font-size: 12px; line-height: 1.45; text-align: center; }
+.consent a { color: #142019; font-weight: 800; }
+.account-status { min-height: 21px; margin: 12px 0 0; color: #142019; font-size: 13px; text-align: center; }
+
+.intro { max-width: 750px; padding: 74px 0 30px; }
+.intro h2, .support-section h2, .data-section h2 { font-size: clamp(32px, 5vw, 52px); }
+.intro > p:last-child { margin: 17px 0 0; color: #415148; font-size: 18px; line-height: 1.5; }
+.tool-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.tool-card { display: flex; min-height: 370px; flex-direction: column; padding: 25px; border: 2px solid #142019; }
+.chatgpt-card { background: #fff; }
+.codex-card { background: #ffcb4c; }
+.helper-card { background: #ff9674; }
+.tool-heading { display: flex; align-items: center; gap: 12px; }
+.product-mark { display: grid; width: 46px; height: 46px; flex: 0 0 46px; place-items: center; overflow: hidden; border-radius: 50%; background: #142019; }
+.official-logo, .helper-logo, .codex-logo { width: 100%; height: 100%; object-fit: contain; }
+.official-logo { background: #142019; }
+.logo-fallback { display: grid; width: 100%; height: 100%; place-items: center; color: #fff; font-size: 25px; }
+.codex-mark { background: #fff; }
+.codex-logo { mix-blend-mode: multiply; transform: scale(1.08); }
+.tool-heading h3 { margin: 0; font-size: 27px; letter-spacing: -.045em; }
+.tool-card p { flex: 1; margin: 22px 0; color: #26362d; font-size: 16px; line-height: 1.55; }
+.tool-card a { color: #142019; font-size: 14px; font-weight: 800; }
+.card-note { margin-top: auto; color: #26362d; font-size: 14px; font-weight: 700; line-height: 1.45; }
+
+.support-section, .data-section { display: grid; grid-template-columns: .85fr 1.15fr; gap: 42px; margin-top: 72px; padding: 32px; border: 2px solid #142019; background: #fff; }
+.support-section p, .data-section p { color: #415148; font-size: 16px; line-height: 1.5; }
+.support-section form { display: grid; gap: 14px; }
+.support-section label { display: grid; gap: 6px; font-size: 13px; font-weight: 800; }
+.support-section select, .support-section textarea { width: 100%; padding: 10px; border: 1.5px solid #142019; background: #fff; color: #142019; font: 14px/1.4 Arial, sans-serif; }
+.support-section textarea { min-height: 112px; resize: vertical; }
+.primary-button { padding: 12px; border: 2px solid #142019; background: #ffc947; color: #142019; cursor: pointer; font-size: 14px; font-weight: 800; }
+.form-status { min-height: 21px; margin: 0 !important; font-size: 13px !important; }
+.support-receipt { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 2px solid #142019; background: #b8dfc5; color: #142019; }
+.support-receipt strong { display: block; font-size: 15px; }
+.support-receipt p { margin: 4px 0 0 !important; color: #26362d; font-size: 13px !important; }
+.receipt-check { display: grid; width: 26px; height: 26px; flex: 0 0 26px; place-items: center; border-radius: 50%; background: #142019; color: #fff; font-size: 16px; font-weight: 800; }
+.data-section { grid-template-columns: 1fr auto; align-items: center; background: #ddc8ff; }
+.delete-button { padding: 12px 16px; border: 2px solid #142019; background: #fff; color: #142019; cursor: pointer; font-size: 14px; font-weight: 800; white-space: nowrap; }
+.delete-button:hover { background: #ffe0d6; }
+
+footer { display: grid; grid-template-columns: 1fr auto; gap: 15px; margin-top: 66px; padding: 22px 0 8px; border-top: 2px solid #142019; color: #415148; font-size: 12px; line-height: 1.45; }
+footer p { margin: 0; }
+footer nav { display: flex; align-items: center; justify-content: flex-end; gap: 15px; }
+footer a { color: #142019; font-weight: 800; text-decoration: none; }
+footer nav img { display: block; width: 18px; height: 18px; }
+footer small { grid-column: 1 / -1; color: #415148; }
+.translation-overlay { position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; background: rgba(20,32,25,.48); color: #fff; font-size: 18px; font-weight: 800; }
+.hidden { display: none !important; }
+.delete-dialog { width: min(520px, calc(100vw - 32px)); margin: auto; padding: 0; border: 2px solid #142019; background: #fffaf0; color: #142019; }
+.delete-dialog::backdrop { background: rgba(20,32,25,.68); }
+.delete-dialog-card { position: relative; padding: 32px; }
+.delete-dialog h2 { max-width: 390px; margin: 0; font-size: clamp(30px, 6vw, 46px); letter-spacing: -.055em; line-height: .98; }
+.delete-dialog p:not(.eyebrow) { margin: 18px 0 0; color: #415148; font-size: 16px; line-height: 1.5; }
+.dialog-close { position: absolute; top: 13px; right: 13px; width: 34px; height: 34px; padding: 0; border: 0; background: transparent; color: #142019; cursor: pointer; font-size: 28px; line-height: 1; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 26px; }
+.dialog-secondary, .dialog-danger { min-height: 42px; padding: 0 14px; border: 2px solid #142019; cursor: pointer; font-weight: 800; }
+.dialog-secondary { background: #fff; color: #142019; }
+.dialog-danger { background: #de5f4b; color: #fff; }
+
+@media (max-width: 780px) {
+  .shell { padding: 18px; }
+  .topbar { align-items: flex-start; }
+  .header-actions { flex-direction: column; align-items: flex-end; gap: 10px; }
+  .hero { padding: 52px 0 36px; }
+  .hero > p:last-child { font-size: 17px; }
+  .account-panel, .support-section { grid-template-columns: 1fr; gap: 24px; padding: 25px; }
+  .tool-grid { grid-template-columns: 1fr; }
+  .tool-card { min-height: 0; }
+  .intro { padding-top: 54px; }
+  .data-section { grid-template-columns: 1fr; gap: 20px; }
+  .delete-button { width: 100%; }
+  .dialog-actions { flex-direction: column-reverse; }
+  .dialog-secondary, .dialog-danger { width: 100%; }
+  footer { grid-template-columns: 1fr; }
+  footer nav { justify-content: flex-start; }
+}
+
+@media (max-width: 460px) {
+  .brand img { width: 46px; height: 46px; }
+  .brand { font-size: 13px; }
+  .language-picker span { display: none; }
+  .language-picker select { min-width: 116px; }
+  .hero h1 { font-size: 40px; }
+  .account-panel h2 { font-size: 32px; }
+  .topbar { gap: 10px; }
+}

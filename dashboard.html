@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Helper</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main class="shell" id="appRoot" aria-busy="false">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="My Helper home">
+        <img src="assets/icon-128.png" alt="My Helper logo">
+        <span>MY HELPER<small>Your personal AI coach</small></span>
+      </a>
+      <div class="header-actions">
+        <label class="language-picker" for="dashboardLanguage"><span data-i18n="languageLabel">Language</span>
+          <select id="dashboardLanguage" aria-label="Choose My Helper language"></select>
+        </label>
+      </div>
+    </header>
+
+    <section id="top" class="hero">
+      <p class="eyebrow" data-i18n="eyebrow">YOUR PERSONAL AI COACH</p>
+      <h1 data-i18n="heroTitle">Learn confidently with the AI tools you already use.</h1>
+      <p data-i18n="heroText">My Helper stays beside you while you work. It explains visible features in clear language, highlights where to click, helps you create stronger prompts, and guides you step by step until using AI feels natural.</p>
+    </section>
+
+    <section class="account-panel" aria-labelledby="accountTitle">
+      <div class="account-copy">
+        <p class="eyebrow" data-i18n="accountEyebrow">YOUR MY HELPER ACCOUNT</p>
+        <h2 id="accountTitle" data-i18n="accountTitle">Sign in to start your guided learning journey.</h2>
+        <p id="accountDescription" data-i18n="accountText">A My Helper account keeps your coaching, language preferences, voice settings, and learning progress private and ready whenever you return.</p>
+      </div>
+      <div class="account-actions">
+        <button id="accountAction" class="google-button" type="button">
+          <img src="assets/google-g-logo.svg" alt="">
+          <span>Sign in with Google</span>
+        </button>
+        <p class="consent" data-i18n="consent">By continuing, you agree to My Helper's <a href="terms.html">Terms of Service</a> and acknowledge that you have read the <a href="privacy.html">Privacy Policy</a>.</p>
+        <p id="accountStatus" class="account-status" aria-live="polite" data-i18n="signedOut">Not signed in</p>
+      </div>
+    </section>
+
+    <section class="intro" aria-labelledby="toolsTitle">
+      <p class="eyebrow" data-i18n="toolsEyebrow">LEARN WITH MY HELPER</p>
+      <h2 id="toolsTitle" data-i18n="toolsTitle">Know what each tool can do - and how to use it well.</h2>
+      <p data-i18n="toolsText">My Helper is an independent learning companion. It helps you build confidence while using ChatGPT and Codex.</p>
+    </section>
+
+    <section class="tool-grid" aria-label="AI tools My Helper coaches">
+      <article class="tool-card chatgpt-card">
+        <div class="tool-heading">
+          <div class="product-mark"><img class="official-logo" src="https://images.ctfassets.net/kftzwdyauwt9/77tJ5U1tgxHMZflZ5m4Z24/ace4d8b6ad200d87ebcb69c466344343/Blossom_4k_Icon_1.png?fm=webp&amp;q=90&amp;w=128" alt="ChatGPT logo"><span class="logo-fallback" hidden aria-hidden="true">*</span></div>
+          <h3>ChatGPT</h3>
+        </div>
+        <p data-i18n="chatgptText">A welcoming place to think, learn, and create. Ask questions, explore ideas, study new topics, write and improve content, make plans, solve problems, and receive clear explanations at your own pace.</p>
+        <a href="https://chatgpt.com/" target="_blank" rel="noreferrer" data-i18n="openChatgpt">Open ChatGPT</a>
+      </article>
+
+      <article class="tool-card codex-card">
+        <div class="tool-heading">
+          <div class="product-mark codex-mark"><img class="codex-logo" src="assets/codex-logo.jfif" alt="Codex logo"></div>
+          <h3>Codex</h3>
+        </div>
+        <p data-i18n="codexText">Your AI partner for building with code. Use Codex to understand projects, write and improve code, find and fix issues, test changes, and turn ideas into working software.</p>
+        <a href="https://openai.com/codex/" target="_blank" rel="noreferrer" data-i18n="exploreCodex">Explore Codex</a>
+      </article>
+
+      <article class="tool-card helper-card">
+        <div class="tool-heading">
+          <div class="product-mark"><img class="helper-logo" src="assets/icon-128.png" alt="My Helper logo"></div>
+          <h3>My Helper</h3>
+        </div>
+        <p data-i18n="helperText">Your calm guide alongside both tools. My Helper explains features in everyday language, highlights the right place to click, teaches stronger prompting, and supports your preferred language and voice.</p>
+        <span class="card-note" data-i18n="helperNote">Learn at your own pace. My Helper is here when you need it.</span>
+      </article>
+    </section>
+
+    <section id="support" class="support-section" aria-labelledby="supportTitle" hidden>
+      <div>
+        <p class="eyebrow" data-i18n="supportEyebrow">WE ARE HERE TO HELP</p>
+        <h2 id="supportTitle" data-i18n="supportTitle">Need support with My Helper?</h2>
+        <p data-i18n="supportText">Tell us what happened. Your message is connected to your My Helper account so we can understand the issue and help you properly.</p>
+      </div>
+      <form id="supportForm">
+        <label><span data-i18n="supportCategory">What do you need help with?</span><select id="supportCategory"><option value="technical" data-i18n="supportTechnical">Technical issue</option><option value="account" data-i18n="supportAccount">Account or sign-in</option><option value="feedback" data-i18n="supportFeedback">Feedback or idea</option><option value="other" data-i18n="supportOther">Something else</option></select></label>
+        <label><span data-i18n="supportMessage">Your message</span><textarea id="supportMessage" maxlength="2000" required data-i18n-placeholder="supportPlaceholder" placeholder="Describe what happened and what you expected to happen."></textarea></label>
+        <button id="supportSubmit" class="primary-button" type="submit" data-i18n="sendSupport">Send support message</button>
+        <div id="supportReceipt" class="support-receipt" role="status" aria-live="polite" hidden>
+          <span class="receipt-check" aria-hidden="true">&#10003;</span>
+          <div><strong data-i18n="supportSentTitle">We received your message.</strong><p data-i18n="supportSentText">It is securely connected to your My Helper account for review.</p></div>
+        </div>
+        <p id="supportStatus" class="form-status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="data-section" aria-labelledby="dataTitle" hidden>
+      <div><p class="eyebrow" data-i18n="dataEyebrow">YOUR DATA</p><h2 id="dataTitle" data-i18n="dataTitle">You stay in control.</h2><p data-i18n="dataText">You can sign out at any time. If you no longer want My Helper, you can permanently delete your My Helper account and its stored data.</p></div>
+      <button id="deleteAccount" class="delete-button" type="button" data-i18n="deleteAccount">Delete My Helper account</button>
+    </section>
+
+    <footer>
+      <p data-i18n="independent">My Helper is independent and is not affiliated with or endorsed by OpenAI.</p>
+      <nav aria-label="My Helper links">
+        <a href="https://x.com/yourhandle" target="_blank" rel="noreferrer" aria-label="My Helper on X"><img src="assets/x-logo.svg" alt=""></a>
+        <a href="https://instagram.com/yourhandle" target="_blank" rel="noreferrer" aria-label="My Helper on Instagram"><img src="assets/instagram-logo.svg" alt=""></a>
+        <a href="terms.html" data-i18n="terms">Terms</a>
+        <a href="privacy.html" data-i18n="privacy">Privacy</a>
+      </nav>
+      <small data-i18n="copyright">&copy; 2026 My Helper. All rights reserved.</small>
+    </footer>
+  </main>
+
+  <dialog id="deleteDialog" class="delete-dialog" aria-labelledby="deleteDialogTitle" aria-describedby="deleteDialogText">
+    <form method="dialog" class="delete-dialog-card">
+      <button class="dialog-close" value="cancel" aria-label="Close">&times;</button>
+      <p class="eyebrow" data-i18n="deleteDialogEyebrow">DELETE MY HELPER ACCOUNT</p>
+      <h2 id="deleteDialogTitle" data-i18n="deleteDialogTitle">Delete your My Helper account?</h2>
+      <p id="deleteDialogText" data-i18n="deleteDialogText">This permanently deletes your My Helper sign-in, saved preferences, learning progress, and support records. It does not delete your Google Account.</p>
+      <div class="dialog-actions"><button id="cancelDelete" class="dialog-secondary" value="cancel" data-i18n="cancelDelete">Keep my account</button><button id="confirmDelete" class="dialog-danger" value="delete" data-i18n="confirmDelete">Delete account</button></div>
+    </form>
+  </dialog>
+
+  <div id="translationOverlay" class="translation-overlay hidden" aria-live="polite">Updating language...</div>
+  <script src="dashboard.js"></script>
+</body>
+</html>

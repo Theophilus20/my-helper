@@ -17,10 +17,12 @@ async function loadEnv() {
 const fileEnv = await loadEnv();
 const config = {
   key: Object.hasOwn(fileEnv, "OPENROUTER_API_KEY") ? fileEnv.OPENROUTER_API_KEY : (process.env.OPENROUTER_API_KEY || ""),
-  model: Object.hasOwn(fileEnv, "OPENROUTER_MODEL") ? fileEnv.OPENROUTER_MODEL : (process.env.OPENROUTER_MODEL || "openai/gpt-chat-latest"),
+  model: Object.hasOwn(fileEnv, "OPENROUTER_MODEL") ? fileEnv.OPENROUTER_MODEL : (process.env.OPENROUTER_MODEL || "openai/gpt-5.4-mini"),
   openaiKey: Object.hasOwn(fileEnv, "OPENAI_API_KEY") ? fileEnv.OPENAI_API_KEY : (process.env.OPENAI_API_KEY || ""),
   ttsModel: Object.hasOwn(fileEnv, "OPENAI_TTS_MODEL") ? fileEnv.OPENAI_TTS_MODEL : (process.env.OPENAI_TTS_MODEL || "tts-1"),
   ttsVoice: Object.hasOwn(fileEnv, "OPENAI_TTS_VOICE") ? fileEnv.OPENAI_TTS_VOICE : (process.env.OPENAI_TTS_VOICE || "nova"),
+  supabaseUrl: String(Object.hasOwn(fileEnv, "SUPABASE_URL") ? fileEnv.SUPABASE_URL : (process.env.SUPABASE_URL || "")).replace(/\/+$/, ""),
+  supabasePublishableKey: Object.hasOwn(fileEnv, "SUPABASE_PUBLISHABLE_KEY") ? fileEnv.SUPABASE_PUBLISHABLE_KEY : (process.env.SUPABASE_PUBLISHABLE_KEY || ""),
   port: Number(Object.hasOwn(fileEnv, "PORT") ? fileEnv.PORT : (process.env.PORT || 8787))
 };
 
@@ -37,13 +39,25 @@ const OFFICIAL_COACHING_CUES = [
 const interfaceCache = new Map();
 const speechCache = new Map();
 const MAX_SPEECH_CACHE_ITEMS = 80;
+const sessionCache = new Map();
+const SESSION_CACHE_TTL_MS = 10_000;
+const MAX_SESSION_CACHE_ITEMS = 200;
+const userRequestWindows = new Map();
+const USER_REQUEST_WINDOW_MS = 15 * 60_000;
+const MAX_USER_REQUEST_WINDOWS = 2_000;
+const PUBLIC_TRANSLATION_LANGUAGES = new Set(["Spanish", "French", "German", "Italian", "Portuguese", "Dutch", "Polish", "Turkish", "Arabic", "Hindi", "Bengali", "Japanese", "Korean", "Simplified Chinese", "Traditional Chinese", "Vietnamese", "Thai", "Indonesian", "Malay", "Russian", "Ukrainian", "Swahili", "Igbo", "Hausa", "Yoruba"]);
+const publicTranslationWindows = new Map();
+const PUBLIC_TRANSLATION_LIMIT = 10;
+const PUBLIC_TRANSLATION_WINDOW_MS = 15 * 60_000;
 
 function reply(res, status, body) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
   });
   res.end(JSON.stringify(body));
 }
@@ -51,9 +65,10 @@ function reply(res, status, body) {
 function replyAudio(res, status, audio, contentType = "audio/mpeg") {
   res.writeHead(status, {
     "Content-Type": contentType,
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY"
   });
   res.end(audio);
 }
@@ -84,8 +99,103 @@ function pcmToWav(pcm, sampleRate) {
 
 function jsonFrom(text) {
   const candidate = String(text || "").replace(/```json|```/g, "").trim().match(/\{[\s\S]*\}/)?.[0];
-  if (!candidate) throw new Error("The selected model did not return a valid response.");
-  return JSON.parse(candidate);
+  if (!candidate) throw httpError(502, "We could not finish that right now. Please try again in a moment.");
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    throw httpError(502, "We could not finish that right now. Please try again in a moment.");
+  }
+}
+
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+function coachServiceMessage(status) {
+  if (status === 429) return "My Helper is busy right now. Please wait a moment and try again.";
+  if (status === 401 || status === 403) return "My Helper is temporarily unavailable. Please try again later.";
+  if (status >= 500) return "My Helper is unavailable right now. Nothing on your ChatGPT page was changed. Please try again shortly.";
+  return "We could not finish that right now. Nothing on your ChatGPT page was changed. Please try again in a moment.";
+}
+
+async function authenticate(req) {
+  if (!config.supabaseUrl || !config.supabasePublishableKey) {
+    throw httpError(503, "My Helper authentication is not configured yet.");
+  }
+
+  const token = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) throw httpError(401, "Sign in with Google to use My Helper coaching.");
+
+  const cached = sessionCache.get(token);
+  if (cached && cached.expiresAt > Date.now()) return cached.user;
+
+  let response;
+  try {
+    response = await fetch(`${config.supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: config.supabasePublishableKey,
+        Authorization: `Bearer ${token}`
+      }
+    });
+  } catch {
+    throw httpError(503, "My Helper could not verify your sign-in session.");
+  }
+  const user = await response.json().catch(() => ({}));
+  if (!response.ok || !user?.id) throw httpError(401, "Your sign-in session is no longer valid. Please sign in again.");
+
+  sessionCache.set(token, { user, expiresAt: Date.now() + SESSION_CACHE_TTL_MS });
+  if (sessionCache.size > MAX_SESSION_CACHE_ITEMS) sessionCache.delete(sessionCache.keys().next().value);
+  return user;
+}
+
+function requestLimitFor(pathname) {
+  if (pathname === "/speech") return 50;
+  if (pathname === "/explain") return 30;
+  return 60;
+}
+
+function allowAuthenticatedRequest(userId, pathname) {
+  const key = `${userId}:${pathname}`;
+  const now = Date.now();
+  const active = userRequestWindows.get(key);
+  const window = active && now - active.startedAt < USER_REQUEST_WINDOW_MS
+    ? active
+    : { startedAt: now, count: 0 };
+  if (window.count >= requestLimitFor(pathname)) return false;
+
+  window.count += 1;
+  userRequestWindows.set(key, window);
+  if (userRequestWindows.size > MAX_USER_REQUEST_WINDOWS) {
+    const oldest = userRequestWindows.keys().next().value;
+    if (oldest) userRequestWindows.delete(oldest);
+  }
+  return true;
+}
+
+function isAllowedPublicTranslation(input) {
+  const strings = input?.strings;
+  if (input?.publicLanding !== true || !PUBLIC_TRANSLATION_LANGUAGES.has(input?.language)) return false;
+  if (!strings || typeof strings !== "object" || Array.isArray(strings)) return false;
+  const entries = Object.entries(strings);
+  return entries.length > 0 && entries.length <= 50
+    && entries.every(([key, value]) => /^[a-zA-Z][a-zA-Z0-9]*$/.test(key) && typeof value === "string" && value.length <= 1200)
+    && JSON.stringify(strings).length <= 14_000;
+}
+
+function allowPublicTranslation(req) {
+  const client = req.socket.remoteAddress || "local";
+  const now = Date.now();
+  const window = publicTranslationWindows.get(client);
+  const active = window && now - window.startedAt < PUBLIC_TRANSLATION_WINDOW_MS
+    ? window
+    : { startedAt: now, count: 0 };
+  if (active.count >= PUBLIC_TRANSLATION_LIMIT) return false;
+  active.count += 1;
+  publicTranslationWindows.set(client, active);
+  return true;
 }
 
 async function askModel(system, user, temperature = 0.35, screenshot = "", maxTokens = 0) {
@@ -107,20 +217,24 @@ async function askModel(system, user, temperature = 0.35, screenshot = "", maxTo
         messages: [{ role: "system", content: system }, { role: "user", content: visualMessage }]
       })
     });
-  } catch {
-    throw new Error("My Helper could not reach OpenRouter. Check your connection and try again.");
+  } catch (error) {
+    console.error("[My Helper] Coach connection failed:", error?.cause?.code || error?.message || "unknown error");
+    throw httpError(503, "We could not connect right now. Nothing on your ChatGPT page was changed. Please try again in a moment.");
   }
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload?.error?.message || `OpenRouter returned ${response.status}.`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error("[My Helper] Coach service returned:", response.status);
+    throw httpError(response.status, coachServiceMessage(response.status));
+  }
   const answer = payload?.choices?.[0]?.message?.content;
-  if (!answer) throw new Error("The selected model did not return text.");
+  if (!answer) throw httpError(502, "We could not finish that right now. Please try again in a moment.");
   return answer;
 }
 
 async function createSpeech(input) {
-  if (!config.openaiKey) throw new Error("Voice is not available right now.");
+  if (!config.openaiKey) throw httpError(503, "Voice is unavailable right now. You can still read My Helper's guidance.");
   const text = String(input.text || "").trim().slice(0, 4096);
-  if (!text) throw new Error("There is no text to speak.");
+  if (!text) throw httpError(400, "There is no guidance to speak yet.");
   const speechKey = `${config.ttsModel}|${config.ttsVoice}|${input.language || "English"}|${input.voiceStyle || "natural"}|${text}`;
   const cached = speechCache.get(speechKey);
   if (cached) return cached;
@@ -140,12 +254,13 @@ async function createSpeech(input) {
         speed: 0.98
       })
     });
-  } catch {
-    throw new Error("My Helper could not reach the voice service.");
+  } catch (error) {
+    console.error("[My Helper] Voice connection failed:", error?.cause?.code || error?.message || "unknown error");
+    throw httpError(503, "Voice is unavailable right now. You can still read My Helper's guidance.");
   }
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error?.error?.message || `Voice service returned ${response.status}.`);
+    console.error("[My Helper] Voice service returned:", response.status);
+    throw httpError(response.status, "Voice is unavailable right now. You can still read My Helper's guidance.");
   }
   const audio = Buffer.from(await response.arrayBuffer());
   const contentType = response.headers.get("content-type") || "audio/mpeg";
@@ -263,12 +378,26 @@ async function readInput(req, res) {
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return reply(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host}`);
-  if (req.method === "GET" && url.pathname === "/health") return reply(res, 200, { ready: Boolean(config.key) });
-  if (req.method !== "POST" || !["/coach", "/explain", "/ask", "/guide", "/interface", "/speech"].includes(url.pathname)) return reply(res, 404, { error: "Not found." });
+  if (req.method === "GET" && url.pathname === "/health") {
+    return reply(res, 200, { ready: Boolean(config.key && config.supabaseUrl && config.supabasePublishableKey) });
+  }
+  if (req.method !== "POST" || !["/coach", "/explain", "/ask", "/guide", "/interface", "/public-interface", "/speech"].includes(url.pathname)) return reply(res, 404, { error: "Not found." });
   try {
     const input = await readInput(req, res);
     if (!input) return;
     if (!config.key) return reply(res, 503, { error: "My Helper coach is not configured yet." });
+    const publicTranslation = url.pathname === "/public-interface";
+    if (publicTranslation) {
+      if (!isAllowedPublicTranslation(input)) return reply(res, 400, { error: "That public translation request is not allowed." });
+      if (!allowPublicTranslation(req)) return reply(res, 429, { error: "Please wait a few minutes before changing the public language again." });
+    } else {
+      // Every coaching, voice, and full-interface request requires a verified
+      // session. The only exception is the bounded public landing-page copy.
+      const user = await authenticate(req);
+      if (!allowAuthenticatedRequest(user.id, url.pathname)) {
+        return reply(res, 429, { error: "You've made several requests. Please wait a few minutes, then try again." });
+      }
+    }
     if (url.pathname === "/speech") {
       const speech = await createSpeech(input);
       return replyAudio(res, 200, speech.audio, speech.contentType);
@@ -283,8 +412,10 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/guide") return reply(res, 200, await guideUser(input));
     return reply(res, 200, await translateInterface(input));
   } catch (error) {
-    return reply(res, 500, { error: error.message || "My Helper could not complete that request." });
+    const status = Number(error.status) || 500;
+    if (!error?.publicMessage) console.error("[My Helper] Request failed:", error?.message || "unknown error");
+    return reply(res, status, { error: error?.publicMessage || "We could not finish that right now. Please try again in a moment." });
   }
 });
 
-server.listen(config.port, () => console.log(`My Helper coach is ready at http://localhost:${config.port}`));
+server.listen(config.port, "0.0.0.0", () => console.log(`My Helper coach is ready on port ${config.port}`));

@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: my-helper-coach-theophilus20
+    runtime: node
+    plan: starter
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-5.4-mini
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_TTS_MODEL
+        value: tts-1
+      - key: OPENAI_TTS_VOICE
+        value: nova
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
