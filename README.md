@@ -2,47 +2,53 @@
 
 > Your personal AI coach for ChatGPT and Codex.
 
-My Helper is a supportive Chrome extension that helps people become confident using ChatGPT and Codex while they work. It explains visible features in plain language, highlights the real place to click, helps users improve prompts, and offers guided learning with multilingual text and voice support.
+My Helper is an educational Chrome extension that appears beside ChatGPT and helps people learn how to use ChatGPT and Codex while they work.
 
-My Helper is designed for people who may be new to AI, including older adults and anyone who wants calm, step-by-step help rather than a technical explanation.
+It explains visible ChatGPT features in plain language, highlights the real control a user needs, coaches better prompts, offers multilingual text and voice guidance, and helps users learn how to use them over time.
 
-## The problem
 
-Having access to ChatGPT or Codex does not automatically make someone comfortable using them. People may not know what to ask, what a button does, where a setting is located, why a response was not useful, or how to turn an idea into an app.
 
-My Helper teaches these skills in the moment. It does not replace ChatGPT or Codex. It helps people learn to use them independently.
+## Why My Helper
+
+Having access to ChatGPT or Codex, some people might not really know what to do, what a particular feature does, or even how to write the right words to get the best result for what they want. I have actually experienced this myself, not once. Especially when I'm looking for a feature, sometimes I ask ChatGPT where it is, but after clicking the first step I forget what comes next. I end up coming back to check the instructions again, which can be a little frustrating.
 
 ## What My Helper does
 
 ### Explains the page in front of the user
 
-My Helper reads the current ChatGPT route and visible controls, then explains what the screen is for in clear, non-judgmental language. It does not automatically read chat history.
+My Helper reads the current ChatGPT route and its visible controls. It explains features in plain language and shows the user where to click when the user ask it.
 
 ### Highlights real controls
 
-When a user asks where to find something, My Helper maps live visible controls on the current page, scrolls to the selected element, outlines it, and can speak the guidance aloud.
+When a user asks where to find something, My Helper maps real visible controls on the current page, scrolls to the correct place, and outlines the matching feature.  
 
-### Coaches prompts without interrupting
+### Coaches prompts
 
-Users can paste or write a prompt and choose **Coach this prompt**. My Helper gives encouraging feedback, shows what is missing, suggests an improved version, and asks the AI to score the prompt only after that explicit action.
+My Helper gives encouraging feedback, identifies missing details, suggests a stronger prompt, and provides an AI reviewed prompt score only after the user chooses Coach this prompt.
 
-### Guides learning while people work
+### Guides learning while a user work
 
-The extension includes lessons and practical guidance for ChatGPT, Codex, prompting, projects, automation, agents, APIs, and professional AI workflows.
+My Helper provides guided lessons for ChatGPT, Codex, prompting, projects, automation, agents, APIs, and professional AI use.
 
 ### Supports language, voice, and accessibility
 
-My Helper supports multilingual interface text and AI guidance, browser speech recognition, installed system voices, optional cloud speech fallback, large text, high contrast, keyboard controls, captions, and a movable assistant bubble.
+My Helper supports multilingual interface text, AI responses, browser voice input, browser installed voices, and optional cloud speech when a suitable local voice is unavailable and a movable assistant bubble.
 
 ## How it works
 
-1. A person opens ChatGPT in Chrome and uses it normally.
-2. They open My Helper when they want guidance.
-3. My Helper maps only the page route and visible controls needed for the request.
-4. The user deliberately chooses an action, such as coaching a prompt, explaining a page, or asking where a feature is.
-5. The secure coach service returns a structured explanation. My Helper displays it as an overlay and, when helpful, highlights the matching live control.
+```text
+User on ChatGPT
+  ↓
+My Helper reads the current route and visible controls (when the user click explain this page)
+  ↓
+The user chooses a coaching or guidance action
+  ↓
+The local coach server sends the requested information to OpenRouter (OPENROUTER_MODEL=openai/gpt-5.4-mini)
+  ↓
+My Helper shows an explanation, coaching response, or highlighted control
+```
 
-The current production architecture diagram is supplied separately with the Devpost submission. It contains no keys, prompts, screenshots, or personal information.
+
 
 ## Privacy and user control
 
@@ -54,7 +60,7 @@ My Helper is built around deliberate sharing and user control.
 - Visible-tab analysis is optional, requires user action, and is used only for the requested page explanation. My Helper does not store the captured image.
 - API keys remain in secure server environments. They are never included in the Chrome extension bundle.
 - My Helper stores only the signed-in user’s product preferences, learning progress, and deliberately submitted support requests.
-- A user can permanently delete their My Helper account and synchronized My Helper data. This does not delete their Google account.
+- A user can permanently delete their My Helper account and synchronized My Helper data. 
 
 Read the full [Privacy Policy](PRIVACY.md) and [Security Policy](SECURITY.md).
 
@@ -78,7 +84,7 @@ The protected `delete-account` Edge Function revokes the session and permanently
 - Shadow DOM overlay, live DOM mapping, Chrome Storage, and Chrome Identity
 - Supabase Auth, Postgres with row-level security, and Edge Functions
 - OpenRouter runtime model: `openai/gpt-5.4-mini`
-- Optional OpenAI Audio Speech API fallback: `tts-1`
+- OpenAI Audio Speech API fallback: `tts-1`
 - Browser Web Speech APIs for installed voices and speech recognition
 - Resend for transactional support email
 - Node.js coach API for authenticated AI requests
@@ -88,7 +94,7 @@ The protected `delete-account` Edge Function revokes the session and permanently
 ### Requirements
 
 1. Google Chrome desktop
-2. Node.js 18 or later
+2. Node.js 18 or newer
 3. An OpenRouter API key
 4. A Supabase project with Google sign-in enabled
 5. Optional: an OpenAI Platform API key for cloud speech fallback
@@ -96,7 +102,7 @@ The protected `delete-account` Edge Function revokes the session and permanently
 
 ### 1. Create `.env`
 
-Copy `.env.example` to `.env` and add your own server-only values.
+Copy `.env` and add your own server-only values.
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_key
@@ -150,8 +156,8 @@ After changing `content.js`, `background.js`, `account-gate.js`, or `manifest.js
 5. Change text and voice languages in Settings.
 6. Choose an installed voice and select **Test voice**.
 7. Move the assistant bubble, refresh ChatGPT, and confirm that it returns to the saved position.
-8. Submit a test support request and verify the support inbox receipt and user confirmation email.
-9. Test account deletion with a test Google account. Confirm that the Supabase Auth user and related My Helper data are removed, while the Google account remains untouched.
+8. Submit a test support request and verify the support inbox receipt.
+9. Test account deletion with a test Google account. Confirm that the Supabase Auth user and related My Helper data are removed.
 
 ## Production deployment
 
@@ -169,13 +175,12 @@ Before store publication, set the extension’s API base URL and its exact `host
 
 Extension link: Coming soon.
 
-After publication, replace this line with the public Chrome Web Store URL.
 
 ## Development with Codex and GPT-5.6
 
 Codex with GPT-5.6 was used throughout the development of My Helper: planning the extension architecture, implementing the Manifest V3 overlay and background worker, refining the page-highlighting system, building multilingual coaching and voice features, implementing Supabase authentication and account deletion, adding protected support workflows, and diagnosing issues through iterative testing.
 
-The live runtime coaching model is OpenRouter `openai/gpt-5.4-mini`, selected to manage runtime cost. It should not be described as GPT-5.6.
+The live runtime coaching model is OpenRouter `openai/gpt-5.4-mini`, selected to manage runtime cost. 
 
 ## Current scope
 
