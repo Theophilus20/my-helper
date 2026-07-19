@@ -202,7 +202,7 @@ No sample database records are needed. My Helper creates its own preference and 
 7. Choose an installed voice and select **Test voice**.
 8. Move the My Helper bubble, refresh ChatGPT, and confirm that it returns to the saved position.
 9. Submit a test support request. Confirm that the support inbox receives the request and the user receives an automatic confirmation email when support email is configured.
-10. Use a test Google account to test account deletion. Confirm that the Supabase Auth user and related My Helper data are removed while the Google account remains untouched.
+10. sign a Google account on my helper to test account deletion. Confirm that the Supabase Auth user and related My Helper data are removed.
 
 ### Reloading after changes
 
