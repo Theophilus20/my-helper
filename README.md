@@ -91,18 +91,27 @@ The protected `delete-account` Edge Function revokes the session and permanently
 
 ## Local development setup
 
+These instructions let a judge or developer run My Helper with their own accounts and keys. No private key, service-role key, user account, or production database access is required from this repository.
+
 ### Requirements
 
-1. Google Chrome desktop
-2. Node.js 18 or newer
-3. An OpenRouter API key
-4. A Supabase project with Google sign-in enabled
-5. Optional: an OpenAI Platform API key for cloud speech fallback
-6. Optional: a Resend account and verified sender domain for support email
+1. Google Chrome desktop.
+2. Node.js 18 or later.
+3. An OpenRouter API key for AI coaching.
+4. A Supabase project with Google sign-in enabled.
+5. Optional: an OpenAI Platform API key for cloud speech fallback.
+6. Optional: a Resend account and verified sender domain for support-email delivery.
 
-### 1. Create `.env`
+### 1. Get the project and create `.env`
 
-Copy `.env` and add your own server-only values.
+Clone the repository and enter the project folder:
+
+```bash
+git clone https://github.com/Theophilus20/my-helper.git
+cd my-helper
+```
+
+Copy `.env.example` to `.env` and add your own server-only values.
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_key
@@ -119,46 +128,85 @@ Never commit, publish, or share `.env`.
 
 ### 2. Configure Supabase
 
-1. Enable the Google provider under **Authentication → Providers** and add the Google OAuth client ID and secret.
-2. Under **Authentication → URL Configuration**, add this redirect URL, replacing the extension ID with the ID shown at `chrome://extensions`:
-
-   ```text
-   https://YOUR_EXTENSION_ID.chromiumapp.org/supabase
-   ```
-
-3. Add the Supabase URL and publishable key to `auth-config.js`. The publishable key is safe to include in the extension; the service-role key is not.
+1. Create a Supabase project.
+2. Enable the Google provider under **Authentication → Providers** and add the Google OAuth client ID and secret.
+3. Add your Supabase URL and publishable key to `auth-config.js`. The publishable key is safe to include in the extension; never add a service-role key to the extension.
 4. Run [`supabase-support.sql`](supabase-support.sql) in the Supabase SQL Editor.
-5. Deploy the `support-email` and `delete-account` Edge Functions from `supabase/functions/`.
-6. Configure support-email secrets as described in [Support email delivery](SUPPORT_EMAIL_SETUP.md).
+5. Deploy the `support-email` and `delete-account` Edge Functions from `supabase/functions/`. Support email is optional for a core coaching test; follow [Support email delivery](SUPPORT_EMAIL_SETUP.md) when configuring it.
 
-### 3. Run the local coach API
+Do not add the Google redirect URL yet. Chrome creates the local extension ID after the extension is loaded in the next steps.
+
+### 3. Point the local extension to the local server
+
+For a local-only build, change `backend-config.js` to use:
+
+```js
+coachApiBaseUrl: "http://localhost:8787"
+```
+
+Also add the following entry to the `host_permissions` array in `manifest.json`:
+
+```text
+http://localhost:8787/*
+```
+
+Keep the production Render URL and production-only permissions for a Chrome Web Store build. Do not publish the local `localhost` permission in a production package.
+
+### 4. Run the local coach API
+
+Start the server from the project folder:
 
 ```powershell
 npm start
 ```
 
-### 4. Load the extension
+Leave this terminal running. The local health check is available at `http://localhost:8787/health` and should return `{"ready":true}`.
+
+### 5. Load the extension and add the Google redirect URL
 
 1. Visit `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Select **Load unpacked**.
 4. Select the folder that contains `manifest.json`.
-5. Open or refresh `https://chatgpt.com`.
+5. Copy the Extension ID displayed by Chrome.
+6. In Supabase under **Authentication → URL Configuration**, add this redirect URL, replacing the placeholder with that Extension ID:
 
-After changing `content.js`, `background.js`, `account-gate.js`, or `manifest.json`, reload the extension and refresh ChatGPT. After changing `.env` or `server.mjs`, restart the Node server.
+   ```text
+   https://YOUR_EXTENSION_ID.chromiumapp.org/supabase
+   ```
 
-## Test checklist
+7. Open or refresh `https://chatgpt.com`.
 
-1. Sign in with Google from **My Helper account**.
-2. Open ChatGPT and select the **Need help?** bubble.
-3. Choose **Improve prompt**, enter a real request, and select **Coach this prompt**.
-4. Choose **Explain this page**, then use a **Show** button to confirm that the correct visible control is outlined.
-5. Change text and voice languages in Settings.
-6. Choose an installed voice and select **Test voice**.
-7. Move the assistant bubble, refresh ChatGPT, and confirm that it returns to the saved position.
-8. Submit a test support request and verify the support inbox receipt.
-9. Test account deletion with a test Google account. Confirm that the Supabase Auth user and related My Helper data are removed.
+### 6. Sign in and start My Helper
 
+1. Open the My Helper extension popup or dashboard.
+2. Sign in with Google.
+3. Open ChatGPT and select the **Need help?** bubble.
+4. Choose a coaching action, such as **Explain this page** or **Improve prompt**.
+
+### Test data and test checklist
+
+No sample database records are needed. My Helper creates its own preference and progress records after a person signs in. Use a test Google account when testing support messages or account deletion.
+
+1. Open ChatGPT and select the **Need help?** bubble.
+2. Choose **Improve prompt** and enter this sample prompt:
+
+   ```text
+   Create a budgeting app for university students.
+   ```
+
+3. Select **Coach this prompt**. Confirm that My Helper gives a helpful review, a score, and an improved prompt.
+4. Choose **Explain this page**. Confirm that My Helper explains the current ChatGPT page without navigating away from it.
+5. Select a **Show** button. Confirm that the matching visible ChatGPT feature is outlined and that the voice explanation stays focused on that feature.
+6. Change the text and voice language in Settings. Confirm that the interface and AI response use the selected language.
+7. Choose an installed voice and select **Test voice**.
+8. Move the My Helper bubble, refresh ChatGPT, and confirm that it returns to the saved position.
+9. Submit a test support request. Confirm that the support inbox receives the request and the user receives an automatic confirmation email when support email is configured.
+10. Use a test Google account to test account deletion. Confirm that the Supabase Auth user and related My Helper data are removed while the Google account remains untouched.
+
+### Reloading after changes
+
+After changing `content.js`, `background.js`, `account-gate.js`, `backend-config.js`, or `manifest.json`, reload the extension in `chrome://extensions` and refresh ChatGPT. After changing `.env` or `server.mjs`, stop the Node server and run `npm start` again.
 ## Production deployment
 
 The extension must point to a deployed HTTPS coach API before it is published to the Chrome Web Store. The production API must:
