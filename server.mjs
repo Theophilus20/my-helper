@@ -302,10 +302,34 @@ function screenEvidence(input) {
   return { page, controls, byId: new Map(controls.map((control) => [control.id, control])) };
 }
 
+function withoutInternalControlIds(value) {
+  return String(value || "")
+    .replace(/\b(?:its|the)\s+(?:exact\s+)?(?:target\s+)?(?:control\s+)?id\s+is\s+(?:control|text)[\s_-]*\d+[.!]?\s*/gi, "")
+    .replace(/\b(?:control|text)[\s_-]*\d+\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function withoutUnrequestedFollowUp(value) {
+  return String(value || "")
+    .replace(/\s*(?:[.?!]\s*)?If you want,?\s+I can also\s+[^.?!]*[.?!]?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function withoutInternalTargetTerms(value) {
+  return withoutInternalControlIds(value)
+    .replace(/\b(?:control|target)\s+(?:id|identifier|number)\b/gi, "feature")
+    .replace(/\bcontrol\b/gi, "feature")
+    .replace(/\b(?:id|identifier)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 async function explainPage(input) {
   const evidence = screenEvidence(input);
   const screenshot = typeof input.screenshot === "string" && /^data:image\/(?:jpeg|png);base64,/.test(input.screenshot) && input.screenshot.length <= 3_200_000 ? input.screenshot : "";
-  const system = `You are My Helper, a calm on-screen guide for ChatGPT. Reply entirely in ${input.language || "English"}. Every summary, purpose, nextStep, and spoken field must use that language only. Do not copy any other language from a page title, chat title, or screenshot into prose. The only exception is an exact visible control label, which must be wrapped in quotation marks; do not use chat titles as feature labels. You receive a real screen map with visible UI targets, exact IDs, and bounds. You may also receive a temporary screenshot of the same visible page. Use the screenshot only to understand the current page's layout and text. For every feature, copy controlId exactly from the supplied screen-map targets; never estimate an on-page location from the image and never invent an ID. Prefer the most useful currently visible controls and cover distinct actions rather than duplicates. Do not infer features, chat history, a ChatGPT Home page, or navigation that are not present in the screen map. If the evidence is insufficient, say that plainly. Return ONLY JSON: {"summary":string,"features":[{"controlId":string,"label":string,"purpose":string,"nextStep":string}],"spoken":string}. Give up to eight features.`;
+  const system = `You are My Helper, a calm on-screen guide for ChatGPT. Reply entirely in ${input.language || "English"}. Every summary, purpose, nextStep, and spoken field must use that language only. Do not copy any other language from a page title, chat title, or screenshot into prose. The only exception is an exact visible feature label, which must be wrapped in quotation marks; do not use chat titles as feature labels. You receive a real screen map with visible UI targets, exact IDs, and bounds. You may also receive a temporary screenshot of the same visible page. Use the screenshot only to understand the current page's layout and text. For every feature, copy controlId exactly from the supplied screen-map targets; never estimate an on-page location from the image and never invent an ID. IDs are internal details and must appear only in features[].controlId. In every user-facing field, including spoken, use the real label or words such as button, menu, or feature. Never say, spell, quote, translate, or show an ID, identifier, or the word control in summary, label, purpose, nextStep, or spoken. Prefer the most useful currently visible features and cover distinct actions rather than duplicates. Do not infer features, chat history, a ChatGPT Home page, or navigation that are not present in the screen map. If the evidence is insufficient, say that plainly. Return ONLY JSON: {"summary":string,"features":[{"controlId":string,"label":string,"purpose":string,"nextStep":string}],"spoken":string}. Give up to eight features.`;
   const prompt = `Screen evidence:\n${JSON.stringify({ page: evidence.page, controls: evidence.controls })}\nExplain this exact page. ${screenshot ? "A temporary screenshot of this same visible page is attached." : ""}`;
   let output;
   let visualUsed = Boolean(screenshot);
@@ -317,23 +341,24 @@ async function explainPage(input) {
     output = jsonFrom(await askModel(system, prompt, 0.35));
   }
   return {
-    summary: String(output.summary || "Here is what is visible on this screen."),
+    summary: withoutInternalTargetTerms(output.summary || "Here is what is visible on this screen."),
     features: Array.isArray(output.features) ? output.features.slice(0, 8).map((feature) => {
       const control = evidence.byId.get(String(feature.controlId || ""));
-      return { controlId: control ? control.id : "", label: control ? control.label : String(feature.label || "Visible feature"), purpose: String(feature.purpose || ""), nextStep: String(feature.nextStep || "") };
+      return { controlId: control ? control.id : "", label: control ? control.label : withoutInternalTargetTerms(feature.label || "Visible feature"), purpose: withoutInternalTargetTerms(feature.purpose), nextStep: withoutInternalTargetTerms(feature.nextStep) };
     }) : [],
-    spoken: String(output.spoken || output.summary || "Here is what I found on this page."),
+    spoken: withoutInternalTargetTerms(output.spoken || output.summary || "Here is what I found on this page."),
     visualUsed
   };
 }
 
 async function answerVoiceQuestion(input) {
   const evidence = screenEvidence(input);
-  const system = `You are My Helper, a patient voice coach for ChatGPT and Codex. Reply entirely in ${input.language || "English"}, matching the user's spoken language. Do not mix English into the answer except for an exact visible control label or product name. Explain features in plain, friendly language. For navigation advice, use ONLY the exact target IDs in the real screen map—never invent a control or location. If a target is not visible, say that it is not visible on this screen. Preserve the current page; never tell the user they are on ChatGPT Home unless the supplied evidence says so. If the user asks a general feature question, answer it directly without links. Do not claim to click, submit, change settings, or read private chat content. Return ONLY JSON: {"answer":string,"suggestedAction":"none"|"open_coach"|"explain_page"|"highlight_control","controlId":string}. Keep answer below 90 words so it can be spoken clearly.`;
+  const system = `You are My Helper, a patient voice coach for ChatGPT and Codex. Reply entirely in ${input.language || "English"}, matching the user's spoken language. Do not mix English into the answer except for an exact visible feature label or product name. Explain features in plain, friendly language. For navigation advice, use ONLY the exact target IDs in the real screen map—never invent a feature or location. The IDs are internal implementation details: put an ID only in the controlId JSON field. In the user-facing answer, use the real label or words such as button, menu, or feature. Never say, spell, quote, translate, or include an ID, identifier, or the word control. If a target is not visible, say that it is not visible on this screen. Preserve the current page; never tell the user they are on ChatGPT Home unless the supplied evidence says so. Answer only what the person asked. Do not add an invitation, optional next step, or an offer such as “If you want, I can also…”. If the user asks a general feature question, answer it directly without links. Do not claim to click, submit, change settings, or read private chat content. Return ONLY JSON: {"answer":string,"suggestedAction":"none"|"open_coach"|"explain_page"|"highlight_control","controlId":string}. Keep answer below 90 words so it can be spoken clearly.`;
   const output = jsonFrom(await askModel(system, `Screen evidence:\n${JSON.stringify({ page: evidence.page, controls: evidence.controls })}\nUser says: ${input.question}`));
   const control = evidence.byId.get(String(output.controlId || ""));
   const suggestedAction = ["none", "open_coach", "explain_page", "highlight_control"].includes(output.suggestedAction) ? output.suggestedAction : "none";
-  return { answer: String(output.answer || "I can help explain this screen."), suggestedAction: suggestedAction === "highlight_control" && !control ? "none" : suggestedAction, controlId: control ? control.id : "", controlLabel: control ? control.label : "" };
+  const answer = withoutUnrequestedFollowUp(withoutInternalTargetTerms(output.answer || "I can help explain this screen."));
+  return { answer, suggestedAction: suggestedAction === "highlight_control" && !control ? "none" : suggestedAction, controlId: control ? control.id : "", controlLabel: control ? control.label : "" };
 }
 
 async function guideUser(input) {

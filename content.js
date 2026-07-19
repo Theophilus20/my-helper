@@ -384,10 +384,11 @@
   baseCopy.preparingVoice = "Preparing voice…";
   baseCopy.listening = "Listening…";
   baseCopy.waitingForSpeech = "Waiting for My Helper to finish speaking.";
-  baseCopy.highlightedControl = "The selected control is highlighted on the page.";
+  baseCopy.highlightedControl = "I have highlighted it on the page.";
   let prefs = { language: "English", voiceLanguage: "English", voiceStyle: "natural", voiceName: "", coachStyle: "friendly", autoTips: false, tipModeVersion: 3, largeText: false, highContrast: false, speechEnabled: true, voiceActivation: false, visualAnalysis: false, promptSkill: 0, chatgptSkill: 0, codexSkill: 0, automationSkill: 0, completedLessons: [], progressVersion: 4 };
   let translatedCopy = { ...baseCopy };
-  const interfaceCacheRevision = 6;
+  // Bump this whenever default interface wording changes so old translations are not reused.
+  const interfaceCacheRevision = 7;
   let translationRequest = 0;
   let languageEpoch = 0;
   const interfaceTranslations = new Map();
@@ -413,6 +414,18 @@
     return path === "/" || !path ? "Current ChatGPT page" : "Current ChatGPT workspace";
   };
   const safe = (text) => String(text || "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" })[char]);
+  const withoutInternalControlIds = (value) => String(value || "")
+    .replace(/\b(?:its|the)\s+(?:exact\s+)?(?:target\s+)?(?:control\s+)?id\s+is\s+(?:control|text)[\s_-]*\d+[.!]?\s*/gi, "")
+    .replace(/\b(?:control|text)[\s_-]*\d+\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  // Target IDs are useful only inside the extension. Never speak them back to a person.
+  const voiceFriendlyText = (value) => withoutInternalControlIds(value)
+    .replace(/\b(?:control|target)\s+(?:id|identifier|number)\b/gi, "feature")
+    .replace(/\bcontrol\b/gi, "feature")
+    .replace(/\b(?:id|identifier)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
   const legacySpeakText = (text) => {
     if (!prefs.speechEnabled) { $("#voiceStatus").textContent = "Coach voice is off. Turn on Spoken replies in Settings to hear answers."; return; }
     if (!("speechSynthesis" in window)) { $("#voiceStatus").textContent = "Speech is not available in this browser."; return; }
@@ -467,12 +480,13 @@
     return cloudAudioContext;
   };
   host.addEventListener("pointerdown", unlockCloudAudio, true);
-  const finishSpokenReply = (sequence, listenAfter) => {
+  const finishSpokenReply = (sequence, listenAfter, onComplete) => {
     if (sequence !== speechSequence) return;
     setVoiceStatus("voiceReady", "Voice coach is ready.");
+    if (typeof onComplete === "function") onComplete();
     if (listenAfter && panel.classList.contains("open")) setTimeout(() => startListening("command"), 450);
   };
-  const playCloudVoice = (text, sequence, listenAfter) => {
+  const playCloudVoice = (text, sequence, listenAfter, onComplete) => {
     setVoiceStatus("preparingVoice", "Preparing voice…");
     requestCloudVoice(text).then((reply) => {
       if (sequence !== speechSequence) return;
@@ -481,12 +495,12 @@
         return;
       }
       const context = unlockCloudAudio();
-      const fail = () => { if (sequence === speechSequence) setVoiceStatus("voiceError", "My Helper could not speak. Choose an installed voice, then test it again."); };
+      const fail = () => { if (sequence === speechSequence) { setVoiceStatus("voiceError", "My Helper could not speak. Choose an installed voice, then test it again."); if (typeof onComplete === "function") onComplete(); } };
       const playWithElement = () => {
         const audio = new Audio(reply.audio);
         activeCloudAudio = { playing: true, stop: () => { audio.pause(); audio.src = ""; } };
         audio.onplay = () => { if (sequence === speechSequence) setVoiceStatus("speakingIn", "Speaking in {language}.", { language: prefs.voiceLanguage }); };
-        audio.onended = () => { if (activeCloudAudio?.stop) activeCloudAudio = null; finishSpokenReply(sequence, listenAfter); };
+        audio.onended = () => { if (activeCloudAudio?.stop) activeCloudAudio = null; finishSpokenReply(sequence, listenAfter, onComplete); };
         audio.onerror = () => { activeCloudAudio = null; fail(); };
         audio.play().catch(() => { activeCloudAudio = null; fail(); });
       };
@@ -498,13 +512,15 @@
         source.buffer = buffer;
         source.connect(context.destination);
         activeCloudAudio = { playing: true, stop: () => { try { source.stop(); } catch {} } };
-        source.onended = () => { if (activeCloudAudio?.stop) activeCloudAudio = null; finishSpokenReply(sequence, listenAfter); };
+        source.onended = () => { if (activeCloudAudio?.stop) activeCloudAudio = null; finishSpokenReply(sequence, listenAfter, onComplete); };
         setVoiceStatus("speakingIn", "Speaking in {language}.", { language: prefs.voiceLanguage });
         source.start();
       }).catch(playWithElement);
     });
   };
-  const speakText = (text, { listenAfter = false } = {}) => {
+  const speakText = (text, { listenAfter = false, onComplete = null } = {}) => {
+    text = voiceFriendlyText(text);
+    if (!text) { onComplete?.(); return; }
     if (!prefs.speechEnabled) { setVoiceStatus("voiceOffMessage", "Coach voice is off. Turn on Spoken replies in Settings to hear answers."); return; }
     const sequence = ++speechSequence;
     clearTimeout(recognitionRestart);
@@ -514,7 +530,7 @@
     if (listeningRecognition) { try { listeningRecognition.abort(); } catch {} }
     if (activeCloudAudio) { activeCloudAudio.stop(); activeCloudAudio = null; }
     if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (!("speechSynthesis" in window)) { playCloudVoice(text, sequence, listenAfter); return; }
+    if (!("speechSynthesis" in window)) { playCloudVoice(text, sequence, listenAfter, onComplete); return; }
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = languageCodes[prefs.voiceLanguage] || "en-US";
     const voices = window.speechSynthesis.getVoices();
@@ -523,15 +539,15 @@
     const selectedVoice = matchingVoices.find((voice) => voice.name === prefs.voiceName) || matchingVoices[0];
     // Never silently fall back to an English (or other) voice for a language
     // the browser does not actually have installed.
-    if (!selectedVoice) { playCloudVoice(text, sequence, listenAfter); return; }
+    if (!selectedVoice) { playCloudVoice(text, sequence, listenAfter, onComplete); return; }
     utterance.voice = selectedVoice;
     utterance.rate = .94;
     utterance.onstart = () => { if (sequence === speechSequence) setVoiceStatus("speakingIn", "Speaking in {language}.", { language: prefs.voiceLanguage }); };
     utterance.onend = () => {
       if (sequence !== speechSequence) return;
-      finishSpokenReply(sequence, listenAfter);
+      finishSpokenReply(sequence, listenAfter, onComplete);
     };
-    utterance.onerror = () => { if (sequence === speechSequence) setVoiceStatus("voiceError", "My Helper could not speak. Choose an installed voice, then test it again."); };
+    utterance.onerror = () => { if (sequence === speechSequence) { setVoiceStatus("voiceError", "My Helper could not speak. Choose an installed voice, then test it again."); if (typeof onComplete === "function") onComplete(); } };
     window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
   };
@@ -634,6 +650,9 @@
     applyPrefs();
     if (prefs.language !== "English") setTimeout(translateInterface, 0);
     savePrefs();
+    // Voice activation is a saved preference. Restart it after every ChatGPT
+    // page load so "I need help" does not silently stop working after refresh.
+    if (prefs.voiceActivation) setTimeout(() => resumeWakeListening(), 450);
   });
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = populateVoices;
 
@@ -706,7 +725,14 @@
       .filter(Boolean).slice(0, 6);
     return { page: { route: location.pathname + location.search, title: String(document.title || "ChatGPT").slice(0, 120), context: pageContext(), headings, viewport: { width: window.innerWidth, height: window.innerHeight } }, controls: [...controls, ...textTargets] };
   };
-  const markControl = (reference, label = "") => {
+  let activeHighlight = null;
+  const clearHighlight = () => {
+    if (!activeHighlight) return;
+    clearTimeout(activeHighlight.timeout);
+    activeHighlight.marker.remove();
+    activeHighlight = null;
+  };
+  const markControl = (reference, label = "", onShown = null) => {
     let element = screenElements.get(String(reference));
     if (!element || !element.isConnected || element.offsetParent === null) {
       const screen = captureScreen();
@@ -721,24 +747,41 @@
     if (!element) { $("#voiceStatus").textContent = `I could not find ${label || reference} on this screen yet.`; return false; }
     panel.classList.remove("open");
     restoreClosedPosition();
-    element.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
-    setTimeout(() => {
-      if (!element.isConnected || element.offsetParent === null) return;
-      const rect = element.getBoundingClientRect();
+    const highlightTarget = element.closest("button,[role='button'],[role='menuitem'],[role='option'],[role='switch'],[role='combobox'],a[href],input,select,textarea,[contenteditable='true']") || element;
+    highlightTarget.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
+    let released = false;
+    const release = () => {
+      released = true;
+      clearHighlight();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (released || !highlightTarget.isConnected || highlightTarget.offsetParent === null) return;
+      clearHighlight();
+      const rect = highlightTarget.getBoundingClientRect();
+      const padding = 8;
+      const width = Math.min(window.innerWidth - 8, Math.max(52, rect.width + padding * 2));
+      const height = Math.min(window.innerHeight - 8, Math.max(38, rect.height + padding * 2));
+      const left = Math.max(4, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 4));
+      const top = Math.max(4, Math.min(rect.top + rect.height / 2 - height / 2, window.innerHeight - height - 4));
       const marker = document.createElement("div");
-      marker.style.cssText = `position:fixed;z-index:2147483646;left:${Math.max(2, rect.left - 5)}px;top:${Math.max(2, rect.top - 5)}px;width:${rect.width + 10}px;height:${rect.height + 10}px;border:4px solid #ffc947;outline:2px solid #152017;box-shadow:0 0 0 9999px rgba(21,32,23,.22);pointer-events:none;animation:my-helper-pulse .8s ease-in-out infinite alternate;`;
+      marker.style.cssText = `position:fixed;z-index:2147483646;left:${left}px;top:${top}px;width:${width}px;height:${height}px;border:4px solid #ffc947;outline:2px solid #152017;box-shadow:0 0 0 9999px rgba(21,32,23,.22);pointer-events:none;animation:my-helper-pulse .8s ease-in-out infinite alternate;`;
       document.documentElement.append(marker);
-      marker.animate([{ transform: "scale(1)" }, { transform: "scale(1.05)" }], { duration: 650, iterations: 5, direction: "alternate" });
-      setTimeout(() => marker.remove(), 4200);
-    }, 120);
-    return true;
+      marker.animate([{ transform: "scale(1)" }, { transform: "scale(1.05)" }], { duration: 650, iterations: Infinity, direction: "alternate" });
+      const timeout = setTimeout(() => {
+        if (activeHighlight?.marker === marker) clearHighlight();
+      }, 120_000);
+      activeHighlight = { marker, timeout };
+      onShown?.();
+    }));
+    return release;
   };
   const highlightAndSpeak = (reference, label) => {
     // Prime browser audio during the user click. This lets an asynchronous
     // cloud response speak after the marker is drawn.
     unlockCloudAudio();
-    if (!markControl(reference, label)) return false;
-    speakText(`${label}. ${translatedCopy.highlightedControl}`);
+    let release = null;
+    release = markControl(reference, label, () => speakText(`${label}. ${translatedCopy.highlightedControl}`, { onComplete: release }));
+    if (!release) return false;
     return true;
   };
   const stars = (value) => "★".repeat(value) + "☆".repeat(5 - value);
@@ -814,6 +857,7 @@
     });
   };
   const showVoiceResponse = (answer, listenAfter = false) => {
+    answer = voiceFriendlyText(answer);
     const card = $("#voiceResponse");
     card.innerHTML = `<strong>${icons.speaker} ${safe(answer)}</strong><div class="button-row" style="margin-top:8px"><button id="hearAgain" class="mini-button">${icons.speaker} ${safe(translatedCopy.hearAgain)}</button><button id="voiceFollowUp" class="mini-button">${icons.mic} ${safe(translatedCopy.askByVoice)}</button></div>`;
     card.classList.remove("hidden");
@@ -869,6 +913,7 @@
 
   const currentView = () => $$(".view").find((view) => !view.classList.contains("hidden"))?.dataset.section || "home";
   const showExplainAnswer = (answer) => {
+    answer = voiceFriendlyText(answer);
     $("#explainAnswer").innerHTML = `<strong>${icons.speaker} ${safe(answer)}</strong>`;
     $("#explainAnswer").classList.remove("hidden");
   };
@@ -884,20 +929,24 @@
         if (sourceView === "explain") { showView("explain"); showExplainAnswer(message); speakText(message, { listenAfter: true }); return; }
         return showVoiceResponse(message);
       }
+      const answer = voiceFriendlyText(reply.answer);
       panel.classList.add("open");
       if (sourceView === "explain") {
         showView("explain");
-        showExplainAnswer(reply.answer);
+        showExplainAnswer(answer);
       } else {
         showView(sourceView === "coach" ? "coach" : "home");
-        showVoiceResponse(reply.answer);
+        showVoiceResponse(answer);
       }
       if (reply.suggestedAction === "open_coach" && sourceView !== "explain") openCoach(composerText());
       if (reply.suggestedAction === "highlight_control" && (reply.controlId || reply.control)) {
-        const found = markControl(reply.controlId || reply.control, reply.controlLabel || reply.control);
-        if (found) speakText(`${reply.answer}. ${translatedCopy.highlightedControl}`, { listenAfter: sourceView === "explain" });
-        else if (sourceView === "explain") speakText(reply.answer, { listenAfter: true });
-      } else if (sourceView === "explain") speakText(reply.answer, { listenAfter: true });
+        let release = null;
+        release = markControl(reply.controlId || reply.control, reply.controlLabel || reply.control, () => {
+          speakText(`${answer}. ${translatedCopy.highlightedControl}`, { listenAfter: sourceView === "explain", onComplete: release });
+        });
+        const found = Boolean(release);
+        if (!found && sourceView === "explain") speakText(answer, { listenAfter: true });
+      } else if (sourceView === "explain") speakText(answer, { listenAfter: true });
     });
   };
   const legacyExplainPage = () => {
@@ -1061,6 +1110,10 @@
     };
     try { recognition.start(); } catch { $("#voiceStatus").textContent = "Voice control is already listening."; }
   };
+  const isWakeCommand = (value) => {
+    const phrase = String(value || "").toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+    return /(?:^|\s)(?:open\s+(?:my\s+)?helper|(?:i\s+)?need\s+help|help\s+me)(?:\s|$)/.test(phrase);
+  };
   const startListening = (mode = "command") => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const wakeMode = mode === "wake";
@@ -1077,7 +1130,9 @@
     activeRecognition = recognition;
     recognition.lang = languageCodes[prefs.language] || "en-US";
     recognition.interimResults = false;
-    recognition.continuous = false;
+    // Wake mode stays open between short pauses, so the command is much less
+    // likely to be missed while the user says "I need help".
+    recognition.continuous = wakeMode;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => {
       recognitionRunning = true;
@@ -1090,7 +1145,7 @@
       const lower = transcript.toLowerCase();
       recognition.stop();
       if (wakeMode) {
-        if (/open (my )?helper|need help|help me|i need help/.test(lower)) {
+        if (isWakeCommand(lower)) {
           panel.classList.add("open");
           showView("home");
           showVoiceResponse(translatedCopy.voiceGreeting || "What may I help you with today? Feel free to tell me.", true);
@@ -1106,7 +1161,7 @@
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         prefs.voiceActivation = false; savePrefs(); applyPrefs();
         $("#voiceStatus").textContent = "Chrome needs microphone permission before voice activation can work.";
-      } else if (!wakeMode && event.error !== "aborted" && event.error !== "no-speech") {
+      } else if (event.error !== "aborted" && event.error !== "no-speech") {
         $("#voiceStatus").textContent = "I could not hear that. Check microphone permission and try again.";
       }
     };
@@ -1160,7 +1215,7 @@
   };
 
   const pauseVoiceListening = () => { const listeningRecognition = activeRecognition; clearTimeout(recognitionRestart); activeRecognition = null; recognitionRunning = false; if (listeningRecognition) { try { listeningRecognition.abort(); } catch {} } };
-  const resumeWakeListening = () => { if (prefs.voiceActivation && !panel.classList.contains("open")) setTimeout(() => startListening("wake"), 350); };
+  const resumeWakeListening = () => { if (prefs.voiceActivation && !panel.classList.contains("open")) startListening("wake"); };
   $("#launcher").addEventListener("click", (event) => {
     if (launcherDragMoved) { event.preventDefault(); event.stopPropagation(); launcherDragMoved = false; return; }
     event.preventDefault(); event.stopPropagation();
